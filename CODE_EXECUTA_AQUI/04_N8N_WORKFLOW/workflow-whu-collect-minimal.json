@@ -1,0 +1,41 @@
+{
+  "name": "WHU Dashboard — POST /api/collect (stub)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      },
+      "id": "schedule",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHU_DASHBOARD_URL }}/api/collect",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ secret: $env.COLLECTOR_SECRET }) }}",
+        "options": {}
+      },
+      "id": "http-collect",
+      "name": "Collect WHU",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [[{ "node": "Collect WHU", "type": "main", "index": 0 }]]
+    }
+  },
+  "meta": {
+    "templateCriadoEm": "2026-04-08",
+    "nota": "Definir WHU_DASHBOARD_URL e COLLECTOR_SECRET no n8n. Se scheduleTrigger não existir, usar Cron. Ajustar jsonBody se sua versão do n8n não suportar $env no expression — use Credentials ou campo fixo temporário só para teste."
+  }
+}

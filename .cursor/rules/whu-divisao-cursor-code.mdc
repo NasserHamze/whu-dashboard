@@ -1,0 +1,57 @@
+---
+description: WHU Dashboard — Cursor + Claude Code; chaves antes de executar; Code cabo a rabo; prompt mestre; handoff
+alwaysApply: true
+---
+
+# Divisão de trabalho (WHU Dashboard — Cursor + Claude Code)
+
+## Stack implícita deste repositório
+
+**Supabase** (Postgres + RLS nas métricas) + **Node** (coletor Express, `POST /api/collect`) + **n8n** (agendador HTTP, sem tokens WHU) + **Vite/React** no repo + **Lovable** opcional.
+
+---
+
+## Portão obrigatório: chaves e acessos ANTES de mandar o Code executar
+
+**Regra firme:** neste projeto, o assistente no **Cursor** **não** inicia implementação “pesada” no repo, **não** entrega o **prompt mestre final** para colar no Claude Code e **não** manda colar nada no Code até completar o passo abaixo — **salvo** se o humano pedir explicitamente só mocks/tipos sem API real.
+
+### 1) Primeira entrega (só planejamento + checklist)
+
+Em feature grande ou “ligar o sistema inteiro”, **primeiro** responder com:
+
+1. **Resumo** do que entendeu (3–6 linhas).
+2. **`## CHECKLIST DE CHAVES E ACESSOS`** — alinhado ao arquivo `CODE_EXECUTA_AQUI/00_PORTAO_CHECKLIST_CURSOR.md` (tabela: variável, onde obter, onde colocar, obrigatória/opcional).
+3. Orientação: **não colar secrets no chat**; preencher `.env` / painéis e responder **“chaves preenchidas conforme checklist”** ou listar só **nomes** das variáveis confirmadas.
+
+### 2) Só depois da confirmação do humano
+
+Quando confirmar que as chaves **obrigatórias** existem:
+
+- **Contrato mínimo** (endpoints, body do collect, tabelas Supabase) — pode apontar para `CODE_EXECUTA_AQUI/`.
+- **Prompt mestre** — arquivo `CODE_EXECUTA_AQUI/01_PROMPT_MESTRE_CLAUDE_CODE.md` (preenchido ou já pronto para o caso WHU).
+- **Bloco Cursor** (UI, tipos, ajustes de front no repo) se couber na mesma entrega.
+
+Se pedirem “começar já” sem chaves: repetir o portão; pode adiantar **só** código que não depende de credencial real.
+
+---
+
+## Claude Code: cabo a rabo até “pronto”
+
+O prompt mestre deve exigir:
+
+1. Executar na **ordem lógica** (schema → `.env`/deploy → n8n → testes).
+2. **Não parar** no primeiro entregável intermediário até o **DoD**.
+3. Encerrar só com **tudo verificável** ou **`## BLOQUEIO`** (causa, o que o humano corrige).
+4. **Um relatório final** no formato do prompt (não micro-relatórios a cada passo).
+
+---
+
+## Quando o humano colar o relatório do Code
+
+Revisar; se faltar algo, devolver **`## PACOTE PARA COLAR NO CLAUDE CODE`** referenciando o DoD.
+
+---
+
+## Onde está o pacote
+
+Pasta: **`whu-dashboard/CODE_EXECUTA_AQUI/`** — ver `README.md` para o ciclo completo.

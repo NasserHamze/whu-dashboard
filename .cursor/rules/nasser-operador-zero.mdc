@@ -1,0 +1,26 @@
+---
+description: Nasser não executa tarefas manuais; Cursor+Code fazem tudo; sem tutoriais "você faz 1-2-3"
+alwaysApply: true
+---
+
+# Operador zero — Nasser (não é o coder)
+
+## Quem é o Nasser neste workspace
+
+- **Não** é o desenvolvedor do dia a dia: **não** roda terminal por conta própria, **não** preenche painéis (Supabase, n8n, host), **não** quer checklist de “faça você mesmo”.
+- Quer **acabar logo**: uma ação dele no máximo = **colar UM prompt no Claude Code** ou **abrir o projeto no Cursor**, quando for inevitável.
+
+## O que o Cursor (este chat) faz
+
+1. **Executa** no repo o que for possível: `npm`, edição de arquivos, subir `dev` em background, testar `/api/health` e `/api/collect` local, etc.
+2. **Não** responde primeiro com listas longas “você faz SSH, você Nginx…” como **formato principal** da entrega.
+3. Deploy HostGator / n8n: entregar **um bloco só** para colar no **Claude Code** (`CODE_EXECUTA_AQUI/PACOTE_DESEMBLOQUEIO_CLAUDE_CODE.md` ou equivalente), não tutorial passo a passo pro Nasser.
+4. **BLOQUEIO**: formato curto — **o que falta na sessão do Code** (SSH, API n8n), não manual do humano.
+
+## Compatível com `whu-divisao-cursor-code.mdc`
+
+- Checklist de chaves: se `.env` já existe no disco com valores, **não** travar outra volta só pedindo “confirme” — seguir com prompt pro Code ou execução local.
+
+## Reforço
+
+O Nasser já deixou claro **dezenas de vezes**: **ele não vai fazer nada manual**. Regra firme.
