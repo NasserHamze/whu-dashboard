@@ -270,7 +270,7 @@ function deduplicateEvents(eventos: EventEntry[]): { unique: EventEntry[]; remov
   return { unique, removed };
 }
 
-export async function collectIncremental(startDate: string, endDate: string): Promise<CollectorResult> {
+export async function collectIncremental(startDate: string, endDate: string, opts?: { force?: boolean }): Promise<CollectorResult> {
   log(`=== Coleta incremental: ${startDate} a ${endDate} ===`);
 
   const supabase = getSupabase();
@@ -318,22 +318,27 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
 
   const allAttIds = allFinalizados.map((c) => c.attendanceId);
   const processedSet = new Set<string>();
+  const forceReprocess = opts?.force ?? false;
 
-  for (let i = 0; i < allAttIds.length; i += 500) {
-    const batch = allAttIds.slice(i, i + 500);
-    const { data: existing } = await supabase
-      .from("whu_atendimentos_logs")
-      .select("attendance_id")
-      .in("attendance_id", batch);
-    if (existing) {
-      for (const row of existing as { attendance_id: string }[]) {
-        processedSet.add(row.attendance_id);
+  if (!forceReprocess) {
+    for (let i = 0; i < allAttIds.length; i += 500) {
+      const batch = allAttIds.slice(i, i + 500);
+      const { data: existing } = await supabase
+        .from("whu_atendimentos_logs")
+        .select("attendance_id")
+        .in("attendance_id", batch);
+      if (existing) {
+        for (const row of existing as { attendance_id: string }[]) {
+          processedSet.add(row.attendance_id);
+        }
       }
     }
   }
 
-  const novos = allFinalizados.filter((c) => !processedSet.has(c.attendanceId));
-  log(`  Já processados: ${processedSet.size}, novos para processar: ${novos.length}`);
+  const novos = forceReprocess
+    ? allFinalizados
+    : allFinalizados.filter((c) => !processedSet.has(c.attendanceId));
+  log(`  ${forceReprocess ? "FORCE MODE — reprocessando todos" : `Já processados: ${processedSet.size}`}, novos para processar: ${novos.length}`);
 
   if (novos.length === 0) {
     log("  Nada novo para processar!");

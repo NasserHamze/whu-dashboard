@@ -142,10 +142,11 @@ async function startServer() {
   const dateYmdOk = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
   app.post("/api/collect/backfill", (req, res) => {
-    const { secret, startDate, endDate } = (req.body || {}) as {
+    const { secret, startDate, endDate, force } = (req.body || {}) as {
       secret?: string;
       startDate?: string;
       endDate?: string;
+      force?: boolean;
     };
     if (!secretOk(secret)) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -183,7 +184,7 @@ async function startServer() {
       message: `Backfill byStartDate [${startDate} .. ${endDate}]. Veja GET /api/collect/status.`,
     });
 
-    collectIncremental(startDate, endDate)
+    collectIncremental(startDate, endDate, { force: !!force })
       .then((result) => {
         lastCollectorResult = result;
         lastCollectorTime = new Date().toISOString();
