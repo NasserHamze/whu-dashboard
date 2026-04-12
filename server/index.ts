@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import { createServer as createViteServer } from "vite";
-import { collectDay, todayInSaoPaulo } from "./whu-collector";
+import { collectDay, collectIncremental, todayInSaoPaulo } from "./whu-collector";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -132,6 +132,67 @@ async function startServer() {
         lastCollectorResult = { error: err.message };
         lastCollectorTime = new Date().toISOString();
         console.error("[Collector] Erro:", err);
+      })
+      .finally(() => {
+        collectorRunning = false;
+        collectorStartedAt = null;
+      });
+  });
+
+  const dateYmdOk = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+  app.post("/api/collect/backfill", (req, res) => {
+    const { secret, startDate, endDate } = (req.body || {}) as {
+      secret?: string;
+      startDate?: string;
+      endDate?: string;
+    };
+    if (!secretOk(secret)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (!startDate || !endDate || !dateYmdOk(startDate) || !dateYmdOk(endDate)) {
+      return res.status(400).json({
+        error: "startDate e endDate obrigatórios (YYYY-MM-DD)",
+      });
+    }
+    if (startDate > endDate) {
+      return res.status(400).json({ error: "startDate deve ser <= endDate" });
+    }
+
+    if (collectorRunning && isCollectorStuck()) {
+      collectorRunning = false;
+      collectorStartedAt = null;
+      lastCollectorResult = { error: "Coleta anterior expirou e foi resetada." };
+      lastCollectorTime = new Date().toISOString();
+    }
+
+    if (collectorRunning) {
+      const runningFor = collectorStartedAt
+        ? Math.round((Date.now() - collectorStartedAt) / 1000 / 60)
+        : 0;
+      return res.json({
+        status: "already_running",
+        message: `Coleta em andamento há ${runningFor} min. Aguarde.`,
+      });
+    }
+
+    collectorRunning = true;
+    collectorStartedAt = Date.now();
+    res.json({
+      status: "started",
+      message: `Backfill byStartDate [${startDate} .. ${endDate}]. Veja GET /api/collect/status.`,
+    });
+
+    collectIncremental(startDate, endDate)
+      .then((result) => {
+        lastCollectorResult = result;
+        lastCollectorTime = new Date().toISOString();
+        console.log("[Collector backfill] OK", result);
+      })
+      .catch((err: Error) => {
+        lastCollectorResult = { error: err.message };
+        lastCollectorTime = new Date().toISOString();
+        console.error("[Collector backfill] Erro:", err);
       })
       .finally(() => {
         collectorRunning = false;

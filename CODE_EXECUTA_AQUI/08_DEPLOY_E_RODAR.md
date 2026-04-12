@@ -44,6 +44,44 @@ O `vite build` gera `dist/public`. Não é necessário CDN separado para o prime
 
 - `GET /api/health` → `{ "ok": true, "service": "whu-dashboard" }`
 
+## Produção atual — DigitalOcean (Nasser)
+
+Este é o ambiente **que está no ar hoje**. O restante do doc (HostGator, Nginx genérico) serve como **referência** para outro host ou quando migrar domínio + HTTPS.
+
+| Item | Valor |
+|------|--------|
+| **Provedor** | DigitalOcean — Droplet |
+| **Recursos** | 1 vCPU, 1 GB RAM, região **NYC3**, Ubuntu 24.04 |
+| **Runtime** | Node.js **v20** + **PM2** (startup automático configurado) |
+| **Base URL (HTTP)** | `http://157.245.213.123:3000` |
+| **Health** | `GET http://157.245.213.123:3000/api/health` |
+| **Coleta (n8n)** | `POST http://157.245.213.123:3000/api/collect` + body `{"secret":"<COLLECTOR_SECRET>"}` |
+| **Status coleta** | `GET http://157.245.213.123:3000/api/collect/status` |
+| **Repo** | `github.com/NasserHamze/whu-dashboard` |
+| **Supabase** | Projeto em uso documentado em `INTEGRATION_LOG.md` |
+| **Pendência** | Domínio próprio + HTTPS (ex.: subdomínio → mesmo IP, Nginx + certbot) — ver pendências no `INTEGRATION_LOG.md` |
+
+### SSH (manutenção)
+
+```bash
+ssh -i ~/.ssh/id_do_deploy root@157.245.213.123
+cd /opt/whu-dashboard
+pm2 logs whu-dashboard
+pm2 restart whu-dashboard
+```
+
+(Ajuste o caminho do projeto na VPS se for diferente de `/opt/whu-dashboard`; a chave SSH se não for `id_do_deploy`.)
+
+### Testes rápidos (de qualquer máquina)
+
+```bash
+curl http://157.245.213.123:3000/api/health
+curl -X POST http://157.245.213.123:3000/api/collect -H "Content-Type: application/json" -d '{"secret":"SEU_COLLECTOR_SECRET"}'
+curl http://157.245.213.123:3000/api/collect/status
+```
+
+Detalhes de datas, n8n e relatório do deploy: **`INTEGRATION_LOG.md`**.
+
 ## HostGator VPS (recomendado se já está pago)
 
 O coletor é **Node + Express**; precisa de processo **sempre ligado** e **HTTPS** para o n8n Cloud chamar `POST /api/collect`. Plano **compartilhado só PHP** em geral **não** serve; use **VPS** (ou equivalente).
@@ -87,7 +125,7 @@ pm2 startup   # seguir a linha que o comando imprimir
 
 Use a base **HTTPS** pública, **sem** barra no final, ex.: `https://whu.seudominio.com.br` → o workflow chama `POST https://whu.seudominio.com.br/api/collect`.
 
-**Render / Fly / Railway** são **opcionais**; aqui o caminho padrão documentado é **VPS já contratada** (HostGator ou outra).
+**Produção hoje:** DigitalOcean (mesma seção mais acima neste arquivo). A parte HostGator é só **modelo de VPS** (Node + PM2 + Nginx) se mudar de servidor no futuro.
 
 ## Checklist pós-deploy
 

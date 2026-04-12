@@ -68,6 +68,15 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Dias para trás em relação ao dia alvo na busca WHU byStartDate (env WHU_COLLECT_LOOKBACK_DAYS, default 120). */
+export function getCollectLookbackDays(): number {
+  const raw = process.env.WHU_COLLECT_LOOKBACK_DAYS;
+  if (raw === undefined || raw.trim() === "") return 120;
+  const n = parseInt(raw, 10);
+  if (Number.isNaN(n) || n < 1) return 120;
+  return Math.min(n, 365);
+}
+
 function log(msg: string) {
   console.log(`[WHU ${new Date().toISOString()}] ${msg}`);
 }
@@ -265,6 +274,7 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
       attendanceId?: string;
       secondaryDescription?: string;
     }>;
+    log(`  [${canalName}] ${chats.length} chats (list-lite) (${startDate} a ${endDate})`);
     let count = 0;
     let skippedNoWaId = 0;
     let skippedDuplicate = 0;
@@ -402,7 +412,25 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
 
     const batchSize = 200;
     for (let i = 0; i < rows.length; i += batchSize) {
-      const batch = rows.slice(i, i + batchSize);
+      const slice = rows.slice(i, i + batchSize);
+      // Mesma chave de conflito do upsert: evita duas linhas idênticas no mesmo batch (erro PostgreSQL).
+      const dedupMap = new Map<
+        string,
+        {
+          data: string;
+          wa_id: string;
+          attendance_id: string;
+          funcionaria_nome: string;
+          canal: string;
+          tipo_evento: string;
+        }
+      >();
+      for (const r of slice) {
+        const k = `${r.attendance_id}|${r.funcionaria_nome}|${r.tipo_evento}`;
+        dedupMap.set(k, r);
+      }
+      const batch = Array.from(dedupMap.values());
+
       const { error } = await supabase.from("whu_atendimentos_logs").upsert(batch, {
         onConflict: "attendance_id,funcionaria_nome,tipo_evento",
       });
@@ -514,9 +542,12 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
 
 export async function collectDay(targetDateStr: string): Promise<CollectorResult> {
   const endDate = targetDateStr;
+  const lookbackDays = getCollectLookbackDays();
   const d = new Date(targetDateStr + "T12:00:00Z");
-  const startD = new Date(d.getTime() - 15 * 24 * 60 * 60 * 1000);
+  const startD = new Date(d.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
   const startDate = startD.toISOString().split("T")[0];
+
+  log(`collectDay(${targetDateStr}): lookback=${lookbackDays}d → list-lite byStartDate [${startDate} .. ${endDate}]`);
 
   return collectIncremental(startDate, endDate);
 }
