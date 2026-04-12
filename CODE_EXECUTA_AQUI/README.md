@@ -6,7 +6,11 @@ Mesmo **ciclo** do projeto clinica-ai: **portão de chaves no Cursor** → **con
 
 ## Stack deste pacote
 
-**Supabase** + **Node** (coletor, `POST /api/collect`) + **n8n** (só dispara HTTP + segredo) + **Vite/React** no repo + **Lovable** opcional.
+**Supabase** + **Node** (coletor, `POST /api/collect`) + **n8n** (só dispara HTTP + segredo) + **Lovable** (UI oficial de produção).
+
+**UI oficial em produção:** https://whu-leads-flow.lovable.app (projeto "WHU Dental Insights" no Lovable, conectado ao Supabase via integração nativa).
+
+O React em `client/` do repo é **referência/sync** — a UI que o cliente acessa é o **Lovable**.
 
 Tokens WHU ficam **só no servidor** (`WHU_CHANNELS_JSON`). O n8n usa apenas `WHU_DASHBOARD_URL` e `COLLECTOR_SECRET`.
 

@@ -1,86 +1,55 @@
-# Log de integração
+# Log de integração — SISTEMA COMPLETO
 
-**Última atualização:** 2026-04-10  
-**Executor:** Claude Code + Cursor
+**Data:** 2026-04-12
+**Executor:** Claude Code (Opus)
 
-## Ambiente
+## Ambiente PRODUCAO
 
-- Supabase: schema + RLS aplicados (Code)
-- Deploy URL (HTTPS): **pendente** — BLOQUEIO (sem SSH/credencial de host no agente)
-- n8n (`nasserhamze.app.n8n.cloud`): workflow **criado e salvo** — "WHU Dashboard - Collect Hourly" (Schedule 1h → HTTP POST). **Não publicado** — URL é placeholder até deploy existir.
+- **BASE URL (coletor):** http://157.245.213.123:3000
+- **Health:** http://157.245.213.123:3000/api/health
+- **Collect:** POST http://157.245.213.123:3000/api/collect (body: `{"secret":"<secret configurado>"}`)
+- **Servidor:** DigitalOcean Droplet (1 vCPU, 1GB RAM, NYC3, Ubuntu 24.04)
+- **Node:** v20.20.2 + PM2 6.0.14
+- **GitHub:** github.com/NasserHamze/whu-dashboard
+- **Supabase:** https://ypvtjtnugzblangsmnmm.supabase.co (SQL aplicado, RLS OK)
+- **n8n:** workflow "WHU Dashboard - Collect Hourly" publicado e ativo (https://nasserhamze.app.n8n.cloud/workflow/olr7JIennvtXnQ2U)
+- **Lovable (UI produção):** https://whu-leads-flow.lovable.app (projeto "WHU Dental Insights", Supabase conectado via integração nativa)
+- **Lovable editor:** https://lovable.dev/projects/e850d00f-c3a9-4033-a1f8-73dc64952158
 
-## O que já está OK (local + backend)
+## Testes em producao
 
-- `.env` completo (Supabase, WHU 5 canais, COLLECTOR_SECRET, VITE_*)
-- `npm install` / `check` / `test` / `build` OK
-- Endpoints locais: health, collect, status, reset validados
+- [x] GET /api/health → {"ok":true,"service":"whu-dashboard"}
+- [x] POST /api/collect → {"status":"started","message":"Coleta iniciada para 2026-04-12..."}
+- [x] PM2 rodando e configurado pra startup automatico
+- [x] n8n workflow publicado, execucao manual OK (status:started, coleta 2026-04-12)
+- [x] Lovable publicado, carregando dados reais do Supabase (filtros, tabela, ranking, cards)
+- [ ] HTTPS (sem dominio ainda — funciona via IP HTTP por enquanto)
 
-## Desbloqueio (só o que falta na **sessão do Claude Code**)
+## Como testar
 
-Sem isso no ambiente onde o Code roda → **BLOQUEIO** legítimo (ninguém “adivinha” teu servidor).
+```
+# Backend/coletor
+curl http://157.245.213.123:3000/api/health
+curl -X POST http://157.245.213.123:3000/api/collect -H "Content-Type: application/json" -d '{"secret":"<secret configurado>"}'
+curl http://157.245.213.123:3000/api/collect/status
 
-| Objetivo | Injetar na sessão do Code (uma opção basta para deploy) |
-|----------|----------------------------------------------------------|
-| VPS HostGator | `SSH_HOST`, `SSH_USER`, chave SSH utilizável (`~/.ssh/...`) |
-| Ou PaaS | `RENDER_API_KEY` / `FLY_API_TOKEN` / `RAILWAY_TOKEN` + CLI logado, conforme o caso |
-| n8n via API | `N8N_API_KEY` + URL da instância (`nasserhamze.app.n8n.cloud`) |
+# Frontend (Lovable)
+# Abrir https://whu-leads-flow.lovable.app no navegador
+# Verificar: cards com totais, tabela com funcionárias, ranking Top 10, filtros de período
+```
 
-Quem administra a máquina/conta pode colocar essas variáveis onde o **Code** as enxerga (perfil do terminal, env do host, ou documentação do Claude Code Desktop para secrets). **Não** precisa ser o Nasser digitando deploy — precisa ser **credencial disponível para o agente**.
+## Pendencias
 
-Depois: colar de novo o prompt de **`PACOTE_DESEMBLOQUEIO_CLAUDE_CODE.md`**.
+1. ~~**n8n:** relogar, abrir workflow, trocar URL, publicar~~ — CONCLUIDO 2026-04-12
+2. ~~**Lovable:** criar dashboard, conectar Supabase, publicar~~ — CONCLUIDO 2026-04-12
+3. **Dominio + HTTPS:** apontar subdominio (ex: whu.clinicaparafamilia.com.br) pro IP 157.245.213.123, instalar Nginx + certbot
+4. **Seguranca:** rotacionar COLLECTOR_SECRET
 
-## Testes produção (quando houver BASE)
+## SSH pra manutenção
 
-- [ ] `GET https://BASE/api/health`
-- [ ] `POST https://BASE/api/collect` + `/api/collect/status`
-- [ ] Linhas novas no Supabase após coleta
-- [ ] Lovable com `VITE_SUPABASE_*` (anon) — só leitura RLS
-
-## Notas
-
-- **COLLECTOR_SECRET:** se apareceu em chat, vale rotacionar no servidor e no n8n quando o deploy existir.
-
----
-
-## Relatório final do Claude Code (2026-04-10) — colado pelo humano
-
-### Status: **BLOQUEIO**
-
-**Feito:** SQL Supabase, `.env`, build/testes, servidor local, INTEGRATION_LOG (rodada anterior).  
-**Bloqueado:** Deploy HTTPS (sem conta PaaS/SSH no agente); n8n (401, login humano).  
-**Sugestão do Code:** Render — **substituído na documentação por HostGator VPS** (`08_DEPLOY_E_RODAR.md`).
-
-### O que o Cursor plugou na UI
-
-Banner `VITE_*`, toast Supabase, hint `/api/collect/status` no header (`Home.tsx`, `lib/supabase.ts`, `lib/collectStatus.ts`).
-
----
-
-## Relatório final do Claude Code (rodada desbloqueio) — colado pelo humano
-
-**Status:** BLOQUEIO — BASE URL vazia, n8n workflow não ativo.
-
-**Causa:** na sessão do Code não existe nenhum de: SSH HostGator, `RENDER_API_KEY`, `FLY_API_TOKEN`, `RAILWAY_TOKEN`, nem `N8N_API_KEY`.
-
-**Local:** continua OK (`npm start`, health, collect, status).
-
----
-
-## Relatório Claude Code (rodada n8n — 2026-04-10)
-
-**Status:** BLOQUEIO PARCIAL
-
-**n8n workflow criado:**
-- Nome: "WHU Dashboard - Collect Hourly"
-- Workflow ID: `olr7JIennvtXnQ2U`
-- Nodes: Schedule Trigger (1h) → HTTP Request (POST)
-- Body: `{"secret":"<COLLECTOR_SECRET>"}` (valor do .env)
-- URL: placeholder `https://DEPLOY_URL_AQUI/api/collect` — trocar pela URL real após deploy
-- Status: **salvo, NÃO publicado** (publicar só após trocar URL)
-
-**Para ativar:**
-1. Fazer deploy HTTPS do whu-dashboard
-2. Editar node HTTP Request → trocar URL pelo domínio real
-3. Clicar Publish no n8n
-
-**Deploy continua BLOQUEIO:** sem SSH/PaaS credentials na sessão do Code.
+```
+ssh -i ~/.ssh/id_do_deploy root@157.245.213.123
+cd /opt/whu-dashboard
+pm2 logs whu-dashboard
+pm2 restart whu-dashboard
+```
