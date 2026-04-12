@@ -38,7 +38,7 @@ describe("analyzeSystemMessages", () => {
     expect(result[0]?.tipo).toBe("lead_novo");
   });
 
-  it("transferência de funcionária é recebido", () => {
+  it("transferência de funcionária gera recebido + transferiu", () => {
     const messages = [
       { isSystemMessage: true, text: "Chat iniciado por: CLIENTE" },
       {
@@ -57,8 +57,13 @@ describe("analyzeSystemMessages", () => {
     ];
 
     const result = analyzeSystemMessages(messages);
+    // GIOVANA recebeu o chat
     const recebido = result.filter((r) => r.tipo === "recebido");
     expect(recebido.length).toBeGreaterThanOrEqual(1);
     expect(recebido[0]?.funcionaria).toContain("GIOVANA");
+    // Anna Melo executou a transferência (por: = autora do transferiu)
+    const transferiu = result.filter((r) => r.tipo === "transferiu");
+    expect(transferiu.length).toBeGreaterThanOrEqual(1);
+    expect(transferiu[0]?.funcionaria).toContain("Anna Melo");
   });
 });

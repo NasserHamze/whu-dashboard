@@ -153,10 +153,22 @@ async function getChatDetail(token: string, attendanceId: string): Promise<unkno
   }
 }
 
+/**
+ * Analisa mensagens de sistema do chat WHU e extrai eventos por funcionária.
+ *
+ * Padrões reconhecidos:
+ * - "Chat assumido por: NOME"           → NOME recebe evento lead_novo
+ * - "Chat transferido para o usuário: DEST no setor: ..., por: ORIGEM"
+ *     Se ORIGEM = ROLETA/BOT/SISTEMA    → DEST recebe lead_novo
+ *     Se ORIGEM = funcionária real       → DEST recebe recebido, ORIGEM recebe transferiu
+ * - "Chat iniciado por: NOME"           → fallback se nenhum assumido/transfer
+ *
+ * Regra de negócio "por:" = quem executou a transferência (autora do transferiu).
+ */
 export function analyzeSystemMessages(
   messages: unknown[]
-): Array<{ funcionaria: string; tipo: "lead_novo" | "recebido" }> {
-  const results: Array<{ funcionaria: string; tipo: "lead_novo" | "recebido" }> = [];
+): Array<{ funcionaria: string; tipo: "lead_novo" | "recebido" | "transferiu" }> {
+  const results: Array<{ funcionaria: string; tipo: "lead_novo" | "recebido" | "transferiu" }> = [];
   let hasAssumidoOrTransfer = false;
   let iniciadoPor: string | null = null;
 
@@ -185,7 +197,10 @@ export function analyzeSystemMessages(
       if (origem === "ROLETA" || origem === "BOT" || origem === "SISTEMA") {
         results.push({ funcionaria: destinatario, tipo: "lead_novo" });
       } else {
+        // Destinatário recebe o chat → recebido
         results.push({ funcionaria: destinatario, tipo: "recebido" });
+        // Origem (por:) executou a transferência → transferiu
+        results.push({ funcionaria: origem, tipo: "transferiu" });
       }
       hasAssumidoOrTransfer = true;
       continue;
@@ -219,7 +234,7 @@ interface EventEntry {
   wa_id: string;
   canal: string;
   funcionaria_nome: string;
-  tipo: "lead_novo" | "recebido";
+  tipo: "lead_novo" | "recebido" | "transferiu";
   data: string;
   started_at: string | null; // ISO UTC do início do chat (utcDhStartChat)
 }
@@ -471,19 +486,20 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
 
       if (allDayEvents.length === 0) continue;
 
-      const agg: Record<string, { lead_novo: number; recebido: number; atendidos: number }> = {};
+      const agg: Record<string, { lead_novo: number; recebido: number; transferiu: number; atendidos: number }> = {};
       for (const ev of allDayEvents) {
         const row = ev as {
           tipo_evento?: string;
           funcionaria_nome?: string;
           canal?: string;
         };
-        if (row.tipo_evento !== "lead_novo" && row.tipo_evento !== "recebido") continue;
+        if (row.tipo_evento !== "lead_novo" && row.tipo_evento !== "recebido" && row.tipo_evento !== "transferiu") continue;
         const key = `${row.funcionaria_nome}|${row.canal ?? ""}`;
-        if (!agg[key]) agg[key] = { lead_novo: 0, recebido: 0, atendidos: 0 };
-        if (row.tipo_evento === "lead_novo") agg[key].lead_novo++;
-        if (row.tipo_evento === "recebido") agg[key].recebido++;
-        agg[key].atendidos++;
+        if (!agg[key]) agg[key] = { lead_novo: 0, recebido: 0, transferiu: 0, atendidos: 0 };
+        if (row.tipo_evento === "lead_novo") { agg[key].lead_novo++; agg[key].atendidos++; }
+        if (row.tipo_evento === "recebido") { agg[key].recebido++; agg[key].atendidos++; }
+        if (row.tipo_evento === "transferiu") agg[key].transferiu++;
+        // Nota: transferiu NÃO soma em atendidos (transferir não é atender)
       }
 
       const { error: delErr } = await supabase.from("whu_metricas_diarias").delete().eq("data", data);
@@ -499,7 +515,7 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
           canal,
           lead_novo: m.lead_novo,
           recebido: m.recebido,
-          transferiu: 0,
+          transferiu: m.transferiu,
           atendidos: m.atendidos,
           updated_at: nowIso,
         };
@@ -517,19 +533,20 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
     log("  Métricas atualizadas!");
   }
 
-  const byEmployee: Record<string, { lead_novo: number; recebido: number; atendidos: number }> = {};
+  const byEmployee: Record<string, { lead_novo: number; recebido: number; transferiu: number; atendidos: number }> = {};
   for (const e of eventosUnicos) {
     if (!byEmployee[e.funcionaria_nome]) {
-      byEmployee[e.funcionaria_nome] = { lead_novo: 0, recebido: 0, atendidos: 0 };
+      byEmployee[e.funcionaria_nome] = { lead_novo: 0, recebido: 0, transferiu: 0, atendidos: 0 };
     }
-    byEmployee[e.funcionaria_nome][e.tipo]++;
-    byEmployee[e.funcionaria_nome].atendidos++;
+    if (e.tipo === "lead_novo") { byEmployee[e.funcionaria_nome].lead_novo++; byEmployee[e.funcionaria_nome].atendidos++; }
+    if (e.tipo === "recebido") { byEmployee[e.funcionaria_nome].recebido++; byEmployee[e.funcionaria_nome].atendidos++; }
+    if (e.tipo === "transferiu") byEmployee[e.funcionaria_nome].transferiu++;
   }
 
   const sorted = Object.entries(byEmployee).sort((a, b) => b[1].atendidos - a[1].atendidos);
   log(`\n  RESUMO desta rodada:`);
   for (const [nome, m] of sorted) {
-    log(`    ${nome}: ${m.lead_novo} novos + ${m.recebido} recebidos = ${m.atendidos}`);
+    log(`    ${nome}: ${m.lead_novo} novos + ${m.recebido} recebidos + ${m.transferiu} transferiu = ${m.atendidos} atendidos`);
   }
 
   return {
