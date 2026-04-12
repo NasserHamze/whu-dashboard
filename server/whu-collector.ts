@@ -221,6 +221,7 @@ interface EventEntry {
   funcionaria_nome: string;
   tipo: "lead_novo" | "recebido";
   data: string;
+  started_at: string | null; // ISO UTC do início do chat (utcDhStartChat)
 }
 
 export interface CollectorResult {
@@ -356,6 +357,7 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
     }
 
     const dataInicio = getStartDate(detail);
+    const startedAtUtc = detail.utcDhStartChat || null;
     const messages = detail.messages || [];
     const transfers = analyzeSystemMessages(messages);
 
@@ -369,6 +371,7 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
           funcionaria_nome: currentUser,
           tipo: "lead_novo",
           data: dataInicio,
+          started_at: startedAtUtc,
         });
       }
     } else {
@@ -380,6 +383,7 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
           funcionaria_nome: t.funcionaria,
           tipo: t.tipo,
           data: dataInicio,
+          started_at: startedAtUtc,
         });
       }
     }
@@ -408,6 +412,7 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
       funcionaria_nome: e.funcionaria_nome,
       canal: e.canal,
       tipo_evento: e.tipo,
+      ...(e.started_at ? { started_at: e.started_at } : {}),
     }));
 
     const batchSize = 200;
@@ -423,6 +428,7 @@ export async function collectIncremental(startDate: string, endDate: string): Pr
           funcionaria_nome: string;
           canal: string;
           tipo_evento: string;
+          started_at?: string;
         }
       >();
       for (const r of slice) {
