@@ -156,12 +156,17 @@ async function getChatDetail(token: string, attendanceId: string): Promise<unkno
 /**
  * Analisa mensagens de sistema do chat WHU e extrai eventos por funcionária.
  *
- * Padrões reconhecidos:
+ * Padrões reconhecidos (verificados em amostra de 185 msgs, 5 canais, abr/2026):
  * - "Chat assumido por: NOME"           → NOME recebe evento lead_novo
- * - "Chat transferido para o usuário: DEST no setor: ..., por: ORIGEM"
+ * - "Chat transferido para o usuário: DEST no setor: ..., por: ORIGEM"  (74.6%)
  *     Se ORIGEM = ROLETA/BOT/SISTEMA    → DEST recebe lead_novo
  *     Se ORIGEM = funcionária real       → DEST recebe recebido, ORIGEM recebe transferiu
  * - "Chat iniciado por: NOME"           → fallback se nenhum assumido/transfer
+ *
+ * Padrões ignorados (não geram transferiu — correto):
+ * - "Chat transferido ao setor: ..., por: BOT"  (23.8%) — BOT não é funcionária
+ * - "Chat transferido para o BOT ..."           (1.1%)  — transferência pro BOT
+ * - "Chat transferido ao BOT ... por: NOME"     (0.5%)  — raro, destino é BOT
  *
  * Regra de negócio "por:" = quem executou a transferência (autora do transferiu).
  */
